@@ -68,15 +68,16 @@ public class ResultActivity extends AppCompatActivity {
 
 
         //inflated view가 보이지 않는 현상 해결을 위해 추가.
+        //resultview의 linearlayout layout height를 wrap_content로 바꾸고 해결.
         //View view  = inflater.inflate(R.layout.content_species, layout, false);
-        View view = getLayoutInflater().inflate(R.layout.content_species, layout, false);
+        /*View view = getLayoutInflater().inflate(R.layout.content_species, layout, false);
         TextView tv_species = (TextView) view.findViewById(R.id.tv_content_species);
         TextView tv_confidence = (TextView) view.findViewById(R.id.tv_content_confidence);
 
         tv_species.setText(" ");
         tv_confidence.setText(" ");
         // set item content in view
-        layout.addView(view);
+        layout.addView(view);*/
         Log.i("inflate", "확인");
     }
 
@@ -144,6 +145,7 @@ public class ResultActivity extends AppCompatActivity {
                 float confidence = list.get(i).getConfidence()*100;
                 String value = String.format("%.2f%%" ,confidence);
                 tv_confidence.setText(value);
+                view.setId(i);
                 // set item content in view
                 layout.addView(view);
                 Log.i("inflate", " " +i);

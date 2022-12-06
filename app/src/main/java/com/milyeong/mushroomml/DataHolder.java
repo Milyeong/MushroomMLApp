@@ -13,3 +13,6 @@ public class DataHolder {
      return bitmap;
  }
 }
+
+// activity 간 데이터 전송을 위한 클래스
+// bitmap의 크기가 intent에서 전송할 수 있는 크기를 넘어서서 클래스로 구현.
