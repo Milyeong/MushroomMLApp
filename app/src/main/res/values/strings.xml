@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">독버섯일까?</string>
+    <string name="main_text">야생버섯의 독성 확률과 \n 추정 버섯 종류를 알아보세요</string>
 </resources>
