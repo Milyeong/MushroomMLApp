@@ -8,155 +8,93 @@ import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.milyeong.mushroomml.ml.MushroomPoison1123;
-import com.milyeong.mushroomml.ml.MushroomSpecies1125;
-
-import org.tensorflow.lite.DataType;
-import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
-
-import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
+
+    DataHolder dataHolder = new DataHolder();
 
     Button btn_camera, btn_gallery;
     ImageView imageView;
     TextView result;
     int imageSize = 224;
+
+    File file;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Log.i("시작", "확인");
 
-        ActivityResultLauncher<Intent> activityResultLauncher;
+        File sdcard = Environment.getExternalStorageDirectory();
+        file = new File(sdcard,"capture,jpg");
 
-        btn_camera = findViewById(R.id.button);
-        btn_gallery = findViewById(R.id.button2);
+        btn_camera = findViewById(R.id.btn_camera);
+        btn_gallery = findViewById(R.id.btn_gallery);
 
-        result = findViewById(R.id.textView);
-        imageView = findViewById(R.id.imageView);
-
-        btn_camera.setOnClickListener(new View.OnClickListener() {
+        btn_camera.setOnClickListener(new OnClickListener() {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onClick(View view) {
                 if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                     Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                    //setResult(3,cameraIntent);
-                    //activityResultLauncher.launch(cameraIntent);
+                    //cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT,Uri.fromFile(file));
+
+
+
+                    setResult(3,cameraIntent);
+                    Log.i("cameraIntent","setResult다음");
                     startActivityForResult(cameraIntent, 3);
+                    //cameraResultLauncher.launch(cameraIntent);
                 } else {
                     requestPermissions(new String[]{Manifest.permission.CAMERA}, 100);
                 }
             }
         });
-        btn_gallery.setOnClickListener(new View.OnClickListener() {
+
+        btn_gallery.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 Intent cameraIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 //setResult(1,cameraIntent);
-                //activityResultLauncher.launch(cameraIntent);
+
                 Log.i("버튼","gallery 버튼 인텐트 생성");
                 startActivityForResult(cameraIntent, 1);
+                //mediaResultLauncher.launch(cameraIntent);
             }
         });
     }
 
-    public void classifyImage(Bitmap image){
-        try {
-            Log.i("?","???");
-            MushroomPoison1123 model = MushroomPoison1123.newInstance(getApplicationContext());
-            MushroomSpecies1125 model_s = MushroomSpecies1125.newInstance(getApplicationContext());
-
-            // Creates inputs for reference.
-            TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1, 224, 224, 3}, DataType.FLOAT32);
-            ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
-            byteBuffer.order(ByteOrder.nativeOrder());
-
-            int[] intValues = new int[imageSize * imageSize];
-            image.getPixels(intValues, 0, image.getWidth(), 0, 0, image.getWidth(), image.getHeight());
-            int pixel = 0;
-            //iterate over each pixel and extract R, G, and B values. Add those values individually to the byte buffer.
-            for(int i = 0; i < imageSize; i ++){
-                for(int j = 0; j < imageSize; j++){
-                    int val = intValues[pixel++]; // RGB
-                    byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 1));
-                    byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 1));
-                    byteBuffer.putFloat((val & 0xFF) * (1.f / 1));
-                }
-            }
-            inputFeature0.loadBuffer(byteBuffer);
-
-            // Runs model inference and gets result.
-            MushroomPoison1123.Outputs outputs = model.process(inputFeature0);
-            TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
-
-            // Runs model inference and gets result.
-            MushroomSpecies1125.Outputs outputs_s = model_s.process(inputFeature0);
-            TensorBuffer outputFeature0_s = outputs_s.getOutputFeature0AsTensorBuffer();
-
-
-            // 이 부분 함수로 만들기 TensorBuffer를 인수로 주고 maxPos를 리턴받기.
-            /*float[] confidences = outputFeature0.getFloatArray();
-
-            // find the index of the class with the biggest confidence.
-            int maxPos = 0;
-            float maxConfidence = 0;
-            for (int i = 0; i < confidences.length; i++) {
-                if (confidences[i] > maxConfidence) {
-                    maxConfidence = confidences[i];
-                    maxPos = i;
-                }
-            }*/
-            int maxPos_p = getMaxPos(outputFeature0);
-            int maxPos_s = getMaxPos(outputFeature0_s);
-            getMaxPosArray(outputFeature0_s);
-
-            String[] classes_p = readTxt("poison_label.txt");
-            String[] classes_s = readTxt("species_label.txt");
-            result.setText(classes_p[maxPos_p]+ " " +classes_s[maxPos_s]);
-
-            // Releases model resources if no longer used.
-            model.close();
-        } catch (IOException e) {
-            // TODO Handle the exception
-        }
-    }
-
-    @Override
     protected void onActivityResult(int requestCode, @Nullable int resultCode, @Nullable Intent data) {
-        Log.i("onActivityResult","함수 호출");
-        if(resultCode == RESULT_OK && data.getData()!=null){
-            if(requestCode == 3){
+        Log.i("onActivityResult", "함수 호출" + resultCode);
+        if (resultCode == RESULT_OK && ((data.getData() != null)||(data.getExtras() != null))){
+            if (requestCode == 3) { // 사진 촬영 시
+                Log.i("cameraIntent","requestCode==3");
                 Bitmap image = (Bitmap) data.getExtras().get("data");
+                //Bitmap image = BitmapFactory.decodeFile(file.getAbsolutePath(),new BitmapFactory.Options());
                 int dimension = Math.min(image.getWidth(), image.getHeight());
                 image = ThumbnailUtils.extractThumbnail(image, dimension, dimension);
-                imageView.setImageBitmap(image);
 
-                image = Bitmap.createScaledBitmap(image, imageSize, imageSize, false);
-                classifyImage(image);
-            }else {
-                Log.i("requestCode == 1", "if문 내 실행");
+                Intent intent = new Intent(MainActivity.this, ResultActivity.class);
+                dataHolder.setBitmap(image);
+                startActivity(intent);
+
+            } else { // 갤러리 사진 선택 시
                 Uri dat = data.getData();
                 Bitmap image = null;
                 try {
@@ -164,85 +102,18 @@ public class MainActivity extends AppCompatActivity {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                imageView.setImageBitmap(image);
 
-                image = Bitmap.createScaledBitmap(image, imageSize, imageSize, false);
-                Log.i("인텐트", String.valueOf(data));
-                classifyImage(image);
+
+                Intent intent = new Intent(MainActivity.this, ResultActivity.class);
+                dataHolder.setBitmap(image);
+                startActivity(intent);
+
             }
-        }
-        super.onActivityResult(requestCode, resultCode, data);
-    }
 
-    private String[] readTxt(String fileName) throws IOException {
-        List<String> list = new ArrayList<>();
-        BufferedReader reader;
-        InputStream inputStream = getAssets().open(fileName);
-        try{
-          reader = new BufferedReader(new InputStreamReader(inputStream));
-          String line = "";
-          while((line = reader.readLine()) != null){
-              Log.d("StackOverflow", line);
-              list.add(line);
-          }
-          Log.i("list",list.toString());
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return list.toArray(new String[0]);
-    }
-
-    private int getMaxPos(TensorBuffer outputFeature0){
-        float[] confidences = outputFeature0.getFloatArray();
-        Log.i("tensorBuffer",confidences.toString());
-
-        // find the index of the class with the biggest confidence.
-        int maxPos = 0;
-        float maxConfidence = 0;
-        for (int i = 0; i < confidences.length; i++) {
-            if (confidences[i] > maxConfidence) {
-                maxConfidence = confidences[i];
-                maxPos = i;
-            }
-        }
-
-        return maxPos;
-    }
-
-    private void getMaxPosArray(TensorBuffer outputFeature0){
-        float[] confidences = outputFeature0.getFloatArray();
-        Log.i("tensorBuffer",confidences.toString());
-
-        // find the index of the class with the biggest confidence.
-
-        Confidence[] cList = new Confidence[3];
-        for(int i =0; i < 3; i++){
-            cList[i] = new Confidence();
-        }
-
-        for(int i = 0; i<confidences.length; i++){
-            if(confidences[i] > cList[0].getConfidence()){
-                cList[2].setConfidence(cList[1].getConfidence());
-                cList[2].setPos(cList[1].getPos());
-                cList[1].setConfidence(cList[0].getConfidence());
-                cList[1].setPos(cList[0].getPos());
-                cList[0].setConfidence(confidences[i]);
-                cList[0].setPos(i);
-            }else if(confidences[i] > cList[1].getConfidence()){
-                cList[2].setConfidence(cList[1].getConfidence());
-                cList[2].setPos(cList[1].getPos());
-                cList[1].setConfidence(confidences[i]);
-                cList[1].setPos(i);
-            }else if(confidences[i] > cList[2].getConfidence()){
-                cList[2].setConfidence(confidences[i]);
-                cList[2].setPos(i);
-            }
-        }
-
-        for(int i =0; i<3; i++){
-            Log.i("cList",cList[i].getConfidence() + " " + cList[i].getPos());
-        }
-        //return maxPos;
+        } else {
+            Log.i("requestCode==1", String.format("%d, %d",resultCode, requestCode));
+           //Log.i("requestCode==1", data.getData().getClass().getName());
+            super.onActivityResult(requestCode, resultCode, data);}
+        //}
     }
 }
